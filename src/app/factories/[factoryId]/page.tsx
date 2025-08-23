@@ -1,4 +1,4 @@
-import { FactoryView } from "./factoryView"
+import { ReactFlowWrapper } from "./reactFlowWrapper"
 
 export default async function Page({
   params,
@@ -6,5 +6,5 @@ export default async function Page({
   params: Promise<{ factoryId: string }>
 }) {
   const { factoryId } = await params
-  return <FactoryView factoryId={factoryId} />
+  return <ReactFlowWrapper factoryId={factoryId} />
 }

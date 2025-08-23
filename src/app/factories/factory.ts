@@ -6,17 +6,21 @@ export type Factory = {
   name: string
   buildings: Building[]
   connections: Connection[]
-  recipes: Recipe[]
 }
 
 export type Building = {
   id: string
   count: number
-  recipe: Recipe['id']
+  recipe: Recipe
+  position: {
+    x: number
+    y: number
+  }
 }
 
 export type Connection = {
-  origin: Building["id"]
+  id: string
+  source: Building["id"]
   target: Building["id"]
 }
 
@@ -38,8 +42,7 @@ export function createFactory(id?: string): Factory{
     id: id ?? uuid7(),
     name: "Untitled factory",
     buildings: [],
-    connections: [],
-    recipes: []
+    connections: []
   }
 }
 
@@ -50,12 +53,15 @@ export class FactoryUtils{
 
     return {
       ...factory,
-      recipes: [...factory.recipes, recipe],
       buildings: [...factory.buildings,
       {
         id: uuid7(),
         count: 1,
-        recipe: recipe.id
+        recipe: recipe,
+        position: {
+          x: 0,
+          y: 0
+        }
       }]
     }
   }
