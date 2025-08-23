@@ -1,5 +1,6 @@
 import docs from "@/lib/typedDocs.json"
 import { v7 as uuid7 } from "uuid"
+import { Node } from "@xyflow/react";
 
 export type Factory = {
   id: string
@@ -63,6 +64,22 @@ export class FactoryUtils{
           y: 0
         }
       }]
+    }
+  }
+
+  static move(factory: Factory, positions: Node[]): Factory{
+    console.log("move")
+    const newBuildings = factory.buildings.map(building => {
+      const newPosition = positions.find(n => n.id === building.id)
+
+      return !newPosition ? building : {
+        ...building,
+        position: newPosition.position
+      }
+    })
+    return {
+      ...factory,
+      buildings: newBuildings
     }
   }
 }

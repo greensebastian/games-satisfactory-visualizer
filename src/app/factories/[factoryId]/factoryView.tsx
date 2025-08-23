@@ -1,16 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Building, createFactory, Factory, FactoryUtils } from "../factory"
 import { useDebouncedCallback } from "use-debounce"
-import { Node, Edge, NodeChange, EdgeChange, Connection, ReactFlow, Position, Handle, useUpdateNodeInternals, NodeProps } from "@xyflow/react";
+import { Node, Edge, NodeChange, EdgeChange, Connection, ReactFlow, Position, Handle, useUpdateNodeInternals, NodeProps, applyNodeChanges } from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
-
-const initialNodes: Node[] = [
-  { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
-  { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
-];
-const initialEdges: Edge[] = [{ id: 'n1-n2', source: 'n1', target: 'n2' }];
 
 const nodeTypes = {
   buildingNode: BuildingNode
@@ -20,14 +14,12 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
   const [firstLoad, setFirstLoad] = useState(true)
   const [factory, setRawFactory] = useState<Factory>()
   const setFactoryInStorage = useDebouncedCallback((newFactory: Factory) => {
-    console.log("setting factory in storage", newFactory.id)
     window.sessionStorage.setItem(`factory:${newFactory.id}`, JSON.stringify(newFactory))
   }, 2000)
 
   const updateNodeInternals = useUpdateNodeInternals();
 
   const setFactory = useCallback((newFactory: Factory) => {
-    console.log("setting factory", newFactory?.id)
     setRawFactory(newFactory)
     for(const building of factory?.buildings ?? []){
       updateNodeInternals(building.id)
@@ -48,16 +40,14 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
     }
   }, [factoryId, firstLoad, factory, setFactory])
 
-  const nodes: Node<Building>[] = !factory ? [] : factory.buildings.map(building => {
+  const nodes: Node<Building>[] = useMemo(() => !factory ? [] : factory.buildings.map(building => {
     return {
       type: "buildingNode",
       id: building.id,
       position: building.position,
       data: building
     }
-  })
-
-  console.log(nodes)
+  }), [factory])
 
   const edges: Edge[] = !factory ? [] : factory.connections.map(connection => {
     return {
@@ -69,9 +59,12 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
  
   const onNodesChange = useCallback(
     (changes: NodeChange<Node>[]) => {
-      console.log("setNodesChange", changes)
+      if (!factory || changes.length === 0) return
+      if (changes.every(c => c.type !== 'position')) return
+      const newNodes = applyNodeChanges(changes, nodes)
+      setFactory(FactoryUtils.move(factory, newNodes))
     },
-    [],
+    [factory, nodes, setFactory],
   );
   const onEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) => {
