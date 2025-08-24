@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Building, createFactory, Factory, FactoryUtils } from "../factory"
 import { useDebouncedCallback } from "use-debounce"
-import { Node, Edge, NodeChange, EdgeChange, Connection, ReactFlow, Position, Handle, useUpdateNodeInternals, NodeProps, applyNodeChanges } from "@xyflow/react";
+import { Node, Edge, NodeChange, EdgeChange, Connection, ReactFlow, Position, Handle, useUpdateNodeInternals, NodeProps } from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
 
 const nodeTypes = {
@@ -19,58 +19,34 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
 
   const updateNodeInternals = useUpdateNodeInternals();
 
-  const setFactory = useCallback((newFactory: Factory) => {
-    setRawFactory(newFactory)
+  const setFactory = useCallback((applyChange: (oldFactory: Factory | undefined ) => Factory) => {
+    setRawFactory(applyChange)
     for(const building of factory?.buildings ?? []){
       updateNodeInternals(building.id)
     }
-    setFactoryInStorage(newFactory)
-  }, [factory?.buildings, setFactoryInStorage, updateNodeInternals])
+    setFactoryInStorage(applyChange(factory))
+  }, [factory, setFactoryInStorage, updateNodeInternals])
 
   useEffect(() => {
     if (firstLoad){
       setFirstLoad(false)
       const serializedFactory = window.sessionStorage.getItem(`factory:${factoryId}`);
       if (factoryId && serializedFactory) {
-        setFactory(JSON.parse(serializedFactory))
+        setFactory(() => JSON.parse(serializedFactory))
       }
       else {
-        setFactory(FactoryUtils.add(createFactory(factoryId), "RecipeAluminumScrapC"))
+        setFactory(() => FactoryUtils.add(createFactory(factoryId), "RecipeAluminumScrapC"))
       }
     }
   }, [factoryId, firstLoad, factory, setFactory])
-
-  const nodes: Node<Building>[] = useMemo(() => !factory ? [] : factory.buildings.map(building => {
-    return {
-      type: "buildingNode",
-      id: building.id,
-      position: building.position,
-      data: building
-    }
-  }), [factory])
-
-  const edges: Edge[] = !factory ? [] : factory.connections.map(connection => {
-    return {
-      id: connection.id,
-      source: connection.source,
-      target: connection.target
-    }
-  })
  
   const onNodesChange = useCallback(
-    (changes: NodeChange<Node>[]) => {
-      if (!factory || changes.length === 0) return
-      if (changes.every(c => c.type !== 'position')) return
-      const newNodes = applyNodeChanges(changes, nodes)
-      setFactory(FactoryUtils.move(factory, newNodes))
-    },
-    [factory, nodes, setFactory],
+    (changes: NodeChange<Node<Building>>[]) => setFactory((factorySnapshot) => FactoryUtils.applyNodeChanges(factorySnapshot, changes)),
+    [setFactory],
   );
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<Edge>[]) => {
-      console.log("setEdgesChange", changes)
-    },
-    [],
+    (changes: EdgeChange<Edge>[]) => setFactory((factorySnapshot) => FactoryUtils.applyEdgeChanges(factorySnapshot, changes)),
+    [setFactory],
   );
   const onConnect = useCallback(
     (params: Edge | Connection) => {
@@ -81,14 +57,13 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
 
   return (
     <div className="p-4 w-screen">
-      <pre>{JSON.stringify(factory, null, 2)}</pre>
       <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add machine</button>
       <div className="w-full h-200 pt-4 text-black">
         <div className="w-fill h-full rounded-md border-solid border-white border-1">
         <ReactFlow
           nodeTypes={nodeTypes}
-          nodes={nodes}
-          edges={[]}
+          nodes={factory?.buildings}
+          edges={factory?.connections}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -96,6 +71,7 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
         />
         </div>
       </div>
+      <pre>{JSON.stringify(factory, null, 2)}</pre>
     </div>
   )
 }
@@ -103,13 +79,13 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
 function BuildingNode({ data } : NodeProps<Node<Building>>){
   return (
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
-      <p className="text-center text-lg">{data.recipe.name}</p>
-      <div className="flex items-stretch">
+      <p className="text-center text-lg">{data.count} X {data.recipe.name} in {data.recipe.producedIn}</p>
+      <div className="flex items-stretch text-nowrap">
         <div className="flex flex-col flex-1 justify-around">
           {data.recipe.requires.map(input => (
             <div key={`input-${input.item}`} className="relative px-2">
               <Handle type="target" position={Position.Left} isConnectable={true} id={`input-${input.item}`}/>
-              {input.item}
+              {data.count * input.rate} {input.item}
             </div>
           ))}
         </div>
@@ -118,7 +94,7 @@ function BuildingNode({ data } : NodeProps<Node<Building>>){
           {data.recipe.requires.map(input => (
             <div key={`output-${input.item}`} className="relative px-2">
               <Handle type="source" position={Position.Right} isConnectable={true} id={`output-${input.item}`}/>
-              {input.item}
+              {data.count * input.rate} {input.item}
             </div>
           ))}
         </div>

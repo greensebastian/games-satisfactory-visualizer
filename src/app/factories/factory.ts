@@ -1,32 +1,20 @@
 import docs from "@/lib/typedDocs.json"
 import { v7 as uuid7 } from "uuid"
-import { Node } from "@xyflow/react";
+import { applyEdgeChanges, applyNodeChanges, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react";
 
 export type Factory = {
   id: string
   name: string
-  buildings: Building[]
-  connections: Connection[]
+  buildings: Node<Building>[]
+  connections: Edge[]
 }
 
 export type Building = {
-  id: string
   count: number
   recipe: Recipe
-  position: {
-    x: number
-    y: number
-  }
-}
-
-export type Connection = {
-  id: string
-  source: Building["id"]
-  target: Building["id"]
 }
 
 export type Recipe = {
-  id: string
   name: string
   requires: ItemRate[]
   produces: ItemRate[]
@@ -48,7 +36,8 @@ export function createFactory(id?: string): Factory{
 }
 
 export class FactoryUtils{
-  static add(factory: Factory, recipeName: string): Factory{
+  static add(factory: Factory | undefined, recipeName: string): Factory{
+    if (!factory) return createFactory()
     const recipe = getRecipe(recipeName)
     if (!recipe) return factory
 
@@ -57,29 +46,36 @@ export class FactoryUtils{
       buildings: [...factory.buildings,
       {
         id: uuid7(),
-        count: 1,
-        recipe: recipe,
+        type: "buildingNode",
         position: {
           x: 0,
           y: 0
+        },
+        data: {
+          count: 1,
+          recipe: recipe
         }
       }]
     }
   }
 
-  static move(factory: Factory, positions: Node[]): Factory{
-    console.log("move")
-    const newBuildings = factory.buildings.map(building => {
-      const newPosition = positions.find(n => n.id === building.id)
+  static applyNodeChanges(factory: Factory | undefined, changes: NodeChange<Factory['buildings'][number]>[]): Factory{
+    if (!factory) return createFactory()
+    if (changes.length === 0) return factory
 
-      return !newPosition ? building : {
-        ...building,
-        position: newPosition.position
-      }
-    })
     return {
       ...factory,
-      buildings: newBuildings
+      buildings: applyNodeChanges<Factory['buildings'][number]>(changes, factory.buildings)
+    }
+  }
+
+  static applyEdgeChanges(factory: Factory | undefined, changes: EdgeChange[]): Factory{
+    if (!factory) return createFactory()
+    if (changes.length === 0) return factory
+
+    return {
+      ...factory,
+      connections: applyEdgeChanges(changes, factory.connections)
     }
   }
 }
@@ -87,9 +83,7 @@ export class FactoryUtils{
 function getRecipe(recipeName: string): Recipe | undefined {
   for(const [key, value] of Object.entries(docs.FGRecipe)){
     if (key === recipeName){
-      
       return {
-        id: key,
         name: value.mDisplayName,
         requires: itemRates(value.mIngredients, parseFloat(value.mManufactoringDuration)),
         produces: itemRates(value.mProduct, parseFloat(value.mManufactoringDuration)),
