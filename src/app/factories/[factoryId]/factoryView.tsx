@@ -1,53 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useState } from "react"
-import { Building, createFactory, Factory, FactoryUtils } from "../factory"
-import { useDebouncedCallback } from "use-debounce"
-import { Node, Edge, NodeChange, EdgeChange, Connection, ReactFlow, Position, Handle, useUpdateNodeInternals, NodeProps } from "@xyflow/react";
+import { useCallback } from "react"
+import { Building, recipes, useFactoryStore } from "../factory"
+import { Node, Edge, Connection, ReactFlow, Position, Handle, NodeProps } from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
+import { Button } from "@/components/ui/button";
+import { Combobox } from "../../../components/ui/combobox";
+import { useStore } from "zustand";
 
 const nodeTypes = {
   buildingNode: BuildingNode
 } as const
 
-export function FactoryView({ factoryId } : { factoryId?: string }) {
-  const [firstLoad, setFirstLoad] = useState(true)
-  const [factory, setRawFactory] = useState<Factory>()
-  const setFactoryInStorage = useDebouncedCallback((newFactory: Factory) => {
-    window.sessionStorage.setItem(`factory:${newFactory.id}`, JSON.stringify(newFactory))
-  }, 2000)
-
-  const updateNodeInternals = useUpdateNodeInternals();
-
-  const setFactory = useCallback((applyChange: (oldFactory: Factory | undefined ) => Factory) => {
-    setRawFactory(applyChange)
-    for(const building of factory?.buildings ?? []){
-      updateNodeInternals(building.id)
-    }
-    setFactoryInStorage(applyChange(factory))
-  }, [factory, setFactoryInStorage, updateNodeInternals])
-
-  useEffect(() => {
-    if (firstLoad){
-      setFirstLoad(false)
-      const serializedFactory = window.sessionStorage.getItem(`factory:${factoryId}`);
-      if (factoryId && serializedFactory) {
-        setFactory(() => JSON.parse(serializedFactory))
-      }
-      else {
-        setFactory(() => FactoryUtils.add(createFactory(factoryId), "RecipeAluminumScrapC"))
-      }
-    }
-  }, [factoryId, firstLoad, factory, setFactory])
+export function FactoryView() {
+  const store = useFactoryStore()
+  const factory = useStore(store)
  
-  const onNodesChange = useCallback(
-    (changes: NodeChange<Node<Building>>[]) => setFactory((factorySnapshot) => FactoryUtils.applyNodeChanges(factorySnapshot, changes)),
-    [setFactory],
-  );
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange<Edge>[]) => setFactory((factorySnapshot) => FactoryUtils.applyEdgeChanges(factorySnapshot, changes)),
-    [setFactory],
-  );
   const onConnect = useCallback(
     (params: Edge | Connection) => {
       console.log("onConnect", params)
@@ -57,15 +25,15 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
 
   return (
     <div className="p-4 w-screen">
-      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add machine</button>
+      <Button onClick={() => factory.add()}>Add machine</Button>
       <div className="w-full h-200 pt-4 text-black">
         <div className="w-fill h-full rounded-md border-solid border-white border-1">
         <ReactFlow
           nodeTypes={nodeTypes}
           nodes={factory?.buildings}
           edges={factory?.connections}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={factory.applyNodeChanges}
+          onEdgesChange={factory.applyEdgeChanges}
           onConnect={onConnect}
           fitView
         />
@@ -76,10 +44,13 @@ export function FactoryView({ factoryId } : { factoryId?: string }) {
   )
 }
 
-function BuildingNode({ data } : NodeProps<Node<Building>>){
+function BuildingNode({ id, data } : NodeProps<Node<Building>>){
+  const store = useFactoryStore()
+  const setRecipe = useStore(store, s => s.setRecipe)
+
   return (
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
-      <p className="text-center text-lg">{data.count} X {data.recipe.name} in {data.recipe.producedIn}</p>
+      <span className="text-center text-lg">{data.count} X <Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /></span>
       <div className="flex items-stretch text-nowrap">
         <div className="flex flex-col flex-1 justify-around">
           {data.recipe.requires.map(input => (
