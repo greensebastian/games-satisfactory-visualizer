@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback } from "react"
-import { Building, recipes, useFactoryStore } from "../factory"
-import { Node, Edge, Connection, ReactFlow, Position, Handle, NodeProps } from "@xyflow/react";
+import { Building, Factory, handleId, recipes, useFactoryStore } from "../factory"
+import { Node, ReactFlow, Position, Handle, NodeProps, useUpdateNodeInternals } from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
 import { Combobox } from "../../../components/ui/combobox";
@@ -15,13 +14,13 @@ const nodeTypes = {
 export function FactoryView() {
   const store = useFactoryStore()
   const factory = useStore(store)
- 
-  const onConnect = useCallback(
-    (params: Edge | Connection) => {
-      console.log("onConnect", params)
-    },
-    [],
-  );
+  const updateNodeInternals = useUpdateNodeInternals()
+
+  const onConnectEnd: Factory['onConnectEnd'] = (event, connectionState) => {
+    const createdBuilding = factory.onConnectEnd(event, connectionState)
+    if (createdBuilding) updateNodeInternals(createdBuilding.id)
+    return createdBuilding
+  }
 
   return (
     <div className="p-4 w-screen">
@@ -34,7 +33,8 @@ export function FactoryView() {
           edges={factory?.connections}
           onNodesChange={factory.applyNodeChanges}
           onEdgesChange={factory.applyEdgeChanges}
-          onConnect={onConnect}
+          onConnect={factory.onConnect}
+          onConnectEnd={onConnectEnd}
           fitView
         />
         </div>
@@ -50,21 +50,21 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
 
   return (
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
-      <span className="text-center text-lg">{data.count} X <Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /></span>
+      <span className="text-center text-lg">{data.count} X <Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /><br/>{data.recipe.producedIn}</span>
       <div className="flex items-stretch text-nowrap">
         <div className="flex flex-col flex-1 justify-around">
           {data.recipe.requires.map(input => (
             <div key={`input-${input.item}`} className="relative px-2">
-              <Handle type="target" position={Position.Left} isConnectable={true} id={`input-${input.item}`}/>
+              <Handle type="target" position={Position.Left} isConnectable={true} id={handleId(id, true, input.item)}/>
               {data.count * input.rate} {input.item}
             </div>
           ))}
         </div>
 
         <div className="flex flex-col flex-1 justify-around text-right">
-          {data.recipe.requires.map(input => (
+          {data.recipe.produces.map(input => (
             <div key={`output-${input.item}`} className="relative px-2">
-              <Handle type="source" position={Position.Right} isConnectable={true} id={`output-${input.item}`}/>
+              <Handle type="source" position={Position.Right} isConnectable={true} id={handleId(id, false, input.item)}/>
               {data.count * input.rate} {input.item}
             </div>
           ))}

@@ -18,6 +18,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useState } from "react"
+import { useDebounce } from "use-debounce"
 
 type ComboboxOption = {
   value: string
@@ -25,7 +27,10 @@ type ComboboxOption = {
 }
 
 export function Combobox({ options, selectedOption, setOption }: {options: ComboboxOption[], selectedOption: string, setOption: (option: string) => void}) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const [debouncedSearch] = useDebounce(search, 200);
+  const filteredOptions = options.filter(o => o.label.toLowerCase().includes(debouncedSearch.toLowerCase())).slice(0, 10)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -43,12 +48,12 @@ export function Combobox({ options, selectedOption, setOption }: {options: Combo
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
-        <Command>
-          <CommandInput placeholder="Search recipe..." className="h-9" />
+        <Command shouldFilter={false}>
+          <CommandInput value={search} onValueChange={setSearch} placeholder="Search recipe..." className="h-9" />
           <CommandList>
             <CommandEmpty>No recipe found.</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}

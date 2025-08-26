@@ -1,22 +1,28 @@
 import docs from "@/lib/typedDocs.json"
 import { v7 as uuid7 } from "uuid"
-import { applyEdgeChanges, applyNodeChanges, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react";
+import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, FinalConnectionState, InternalNode, Node, NodeChange, Position } from "@xyflow/react";
 import { createStore } from "zustand";
-import { createJSONStorage, persist } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import { createContext, useContext } from "react";
-import debounce from "lodash.debounce";
-import { StorageValue } from "zustand/middleware";
 
-export type Factory = {
+export const storagePrefix = "factory::"
+
+type FactoryProps = {
   id: string
+}
+
+export type Factory = FactoryProps & {
   name: string
   buildings: Node<Building>[]
   connections: Edge[]
+  updatedAt: string
   replace(newFactory: Factory): void
-  add(recipeId?: string): void
-  setRecipe(buildingId: string, recipeId: string): void
+  add(params?: { position?: Node['position'], recipe?: Recipe, count?: number }): Factory["buildings"][number]
+  setRecipe(buildingId: string, recipeId: string): Factory["buildings"][number] | undefined
   applyNodeChanges(changes: NodeChange<Factory['buildings'][number]>[]): void
   applyEdgeChanges(changes: EdgeChange[]): void
+  onConnect(params: Edge | Connection): void
+  onConnectEnd(event: MouseEvent | TouchEvent, connectionState: FinalConnectionState): Factory["buildings"][number] | undefined
 }
 
 export type Building = {
@@ -29,7 +35,7 @@ export type Recipe = {
   name: string
   requires: ItemRate[]
   produces: ItemRate[]
-  producedIn: string
+  producedIn?: string
 }
 
 export type ItemRate = {
@@ -50,6 +56,11 @@ function itemRates(input: string, secondsToCreate: number): ItemRate[]{
   return results
 }
 
+function producedIn(input: string): string | undefined {
+  const [match] = input.matchAll(/\.Build_([^,]+)/g)
+  return match ? match[1] ? normalize(match[1]) : undefined : undefined
+}
+
 const specialCharacters = /[^a-zA-Z0-9]/g
 function normalize(input: string) {
   return input.replaceAll(specialCharacters, "")
@@ -60,84 +71,85 @@ export const recipes: Recipe[] = Object.entries(docs.FGRecipe).map(([key, value]
   name: value.mDisplayName,
   requires: itemRates(value.mIngredients, parseFloat(value.mManufactoringDuration)),
   produces: itemRates(value.mProduct, parseFloat(value.mManufactoringDuration)),
-  producedIn: "Machine"
+  producedIn: producedIn(value.mProducedIn)
 }));
 
 const getRecipe = (recipeId: string) => recipes.find(recipe => recipe.id === recipeId)
+const defaultRecipe = recipes.find(r => r.name === "Heavy Modular Frame")!
+function bestMatch(searchRates: ItemRate[], searchInput: boolean, left: Recipe, right: Recipe, requiredItem: string){
+  if (!left.producedIn) return right
+  if (!right.producedIn) return left
+  const leftItems = (searchInput ? left.requires : left.produces).map(ir => ir.item)
+  const rightItems = (searchInput ? right.requires : right.produces).map(ir => ir.item)
+  if (!leftItems.includes(requiredItem)) return right
+  if (!rightItems.includes(requiredItem)) return left
+  const leftMatches = searchRates.filter(ir => leftItems.includes(ir.item)).length
+  const rightMatches = searchRates.filter(ir => rightItems.includes(ir.item)).length
+  return leftMatches >= rightMatches ? left : right
+}
+const getBestRecipe = (rates: ItemRate[], ratesAreOutput: boolean, requiredItem: string) => recipes.reduce((prev, curr) => bestMatch(rates, ratesAreOutput, prev, curr, requiredItem), defaultRecipe)
 
-type FactoryProps = {
-  id: string
+export function handleId(buildingId: string, isInput: boolean, itemId: string){
+  return `${buildingId}||${isInput ? "target" : "source"}||${itemId}`
 }
 
-type FactoryState = FactoryProps & {
-  name: string
-  buildings: Node<Building>[]
-  connections: Edge[]
-  replace(newFactory: Factory): void
-  add(recipeId?: string): void
-  setRecipe(buildingId: string, recipeId: string): void
-  applyNodeChanges(changes: NodeChange<Factory['buildings'][number]>[]): void
-  applyEdgeChanges(changes: EdgeChange[]): void
+export function reverseHandleId(handleId: string){
+  const split = handleId.split("||")
+  return {
+    buildingId: split[0],
+    isInput: split[1] === "target",
+    itemId: split[2]
+  }
 }
 
 type FactoryStore = ReturnType<typeof createFactoryStore>
-
-const jsonStorage = createJSONStorage<FactoryState>(() => localStorage)
-const debouncedJsonStorage = {
-  ...jsonStorage,
-  setItem: debounce((name: string, value: StorageValue<FactoryState>) => jsonStorage?.setItem(name, value) ?? {}, 500, {
-    maxWait: 5000
-  })
-}
 
 export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
   const DEFAULT_PROPS: FactoryProps = {
     id: uuid7(),
   }
-  return createStore<FactoryState>()(persist(
+  return createStore<Factory>()(persist(
     (set, get) => ({
       ...DEFAULT_PROPS,
       ...initProps,
-      name: "Unititle factory",
+      name: "Untitled factory",
       buildings: [],
       connections: [],
+      updatedAt: new Date().toUTCString(),
 
-      replace(newFactory: Factory){
+      replace(newFactory){
         set(newFactory, true)
       },
 
-      add(recipeId?: string){
-        const recipe = getRecipe(recipeId ?? recipes[0].id)
-        if (!recipe) return
+      add(params){
+        const recipe = params?.recipe ? params.recipe : get().buildings.length === 0 ? defaultRecipe : get().buildings[0].data.recipe
 
-        const maxX = this.buildings.length === 0 
-          ? 0
-          : get().buildings.reduce((prev, curr) => curr.position.x > prev ? curr.position.x : prev, get().buildings[0].position.x)
+        const position = params?.position ?? {
+          x: get().buildings.length === 0 ? 0 : this.buildings[0].position.x + 50,
+          y: get().buildings.length === 0 ? 0 : this.buildings[0].position.y + 50
+        }
 
-        const maxY = this.buildings.length === 0 
-          ? 0
-          : get().buildings.reduce((prev, curr) => curr.position.y > prev ? curr.position.y : prev, get().buildings[0].position.y)
-
+        const id = uuid7();
         set({
           buildings: [
             ...get().buildings,
             {
-              id: uuid7(),
+              id: id,
               type: "buildingNode",
-              position: {
-                x: maxX + get().buildings.length === 0 ? 0 : 500,
-                y: maxY
-              },
+              position: position,
               data: {
-                count: 1,
+                count: params?.count ?? 1,
                 recipe: recipe
               }
             }
           ]
         })
+
+        set({ updatedAt: new Date().toUTCString() })
+        return get().buildings.find(b => b.id === id)!
       },
 
-      setRecipe(buildingId: string, recipeId: string){
+      setRecipe(buildingId, recipeId){
         const building = get().buildings.find(b => b.id === buildingId)
         if (!building) return
 
@@ -159,32 +171,86 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
         set({
           buildings: newBuildings
         })
+
+        set({ updatedAt: new Date().toUTCString() })
+        return get().buildings.find(b => b.id === buildingId)
       },
 
-      applyNodeChanges(changes: NodeChange<Factory['buildings'][number]>[]){
+      applyNodeChanges(changes){
         if (changes.length === 0) return
 
         set({
-          buildings: applyNodeChanges<Factory['buildings'][number]>(changes, get().buildings)
+          buildings: applyNodeChanges(changes, get().buildings)
         })
+        set({ updatedAt: new Date().toUTCString() })
       },
 
-      applyEdgeChanges(changes: EdgeChange[]){
+      applyEdgeChanges(changes){
         if (changes.length === 0) return
 
         set({
           connections: applyEdgeChanges(changes, get().connections)
         })
-      }
+        set({ updatedAt: new Date().toUTCString() })
+      },
+
+      onConnect(params){
+        set({
+          connections: addEdge(params, get().connections)
+        })
+        set({ updatedAt: new Date().toUTCString() })
+      },
+
+      onConnectEnd(_, connectionState) {
+        if (!connectionState.toNode){
+          const sourceNode = connectionState.fromNode
+          const sourceHandle = connectionState.fromHandle
+          if (!sourceNode || !isBuilding(sourceNode?.data) || !sourceHandle) return
+          const sourceIsOutput = sourceHandle.type === 'source'
+          const requiredItem = reverseHandleId(sourceHandle.id!).itemId
+          const targetRecipe = getBestRecipe(sourceIsOutput ? sourceNode.data.recipe.produces : sourceNode.data.recipe.requires, sourceIsOutput, requiredItem)
+          const targetNode = get().add({position: sourceNode.position, recipe: targetRecipe})
+          
+          setTimeout(() => {
+            const target = get().buildings.find(b => b.id === targetNode?.id)
+            const source = get().buildings.find(b => b.id === sourceNode?.id)
+            if (target && source){
+              const deltaX = sourceIsOutput ? source.measured?.width ?? 0 : target.measured?.width ?? 0
+              const deltaY = ((source.measured?.height ?? 0) - (target.measured?.height ?? 0)) / 2
+              get().applyNodeChanges([{
+                id: target.id,
+                type: "position",
+                position: {
+                  y: source.position.y + deltaY,
+                  x: source.position.x + (sourceIsOutput ? deltaX + 50 : -deltaX - 50)
+                }
+              }])
+              const targetHandleId = handleId(target.id, sourceIsOutput, requiredItem)
+              const realSourceHandle = sourceIsOutput ? sourceHandle.id : targetHandleId
+              const realTargetHandle = sourceIsOutput ? targetHandleId : sourceHandle.id
+              if (realSourceHandle && realTargetHandle){
+                get().onConnect({
+                  id: uuid7(),
+                  source: sourceIsOutput ? source.id : target.id,
+                  sourceHandle: realSourceHandle,
+                  target: sourceIsOutput ? target.id : source.id,
+                  targetHandle: realTargetHandle
+                })
+              }
+            }
+          }, 0)
+
+          return targetNode
+        }
+      },
     }), {
-      name: `factory::${initProps?.id ?? DEFAULT_PROPS.id}`,
-      storage: {
-        getItem: (name) => debouncedJsonStorage.getItem ? debouncedJsonStorage.getItem(name) : null,
-        removeItem: (name) => debouncedJsonStorage.removeItem && debouncedJsonStorage.removeItem(name),
-        setItem: (name, value) => debouncedJsonStorage.setItem && debouncedJsonStorage.setItem(name, value)
-      } 
+      name: `${storagePrefix}${initProps?.id ?? DEFAULT_PROPS.id}`
     })
   )
+}
+
+function isBuilding(data?: Record<string, unknown>): data is Building{
+  return !!data && !!data.recipe && !!data.count
 }
 
 export const FactoryContext = createContext<FactoryStore | null>(null)
