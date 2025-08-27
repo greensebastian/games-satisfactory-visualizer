@@ -17,6 +17,8 @@ export type Factory = FactoryProps & {
   connections: Edge[]
   updatedAt: string
   replace(newFactory: Factory): void
+  set(update: (state: Factory) => Partial<Factory>): void
+  setBuilding(buildingId: string, update: (state: Factory["buildings"][number]) => Factory["buildings"][number]): Factory["buildings"][number] | undefined
   add(params?: { position?: Node['position'], recipe?: Recipe, count?: number }): Factory["buildings"][number]
   setRecipe(buildingId: string, recipeId: string): Factory["buildings"][number] | undefined
   applyNodeChanges(changes: NodeChange<Factory['buildings'][number]>[]): void
@@ -41,6 +43,11 @@ export type Recipe = {
 export type ItemRate = {
   item: string
   rate: number
+}
+
+export type Item = {
+  id: string
+  display: string
 }
 
 const itemRateRegex = /\([^()]+\)/g
@@ -76,6 +83,7 @@ export const recipes: Recipe[] = Object.entries(docs.FGRecipe).map(([key, value]
 
 const getRecipe = (recipeId: string) => recipes.find(recipe => recipe.id === recipeId)
 const defaultRecipe = recipes.find(r => r.name === "Heavy Modular Frame")!
+
 function bestMatch(searchRates: ItemRate[], searchInput: boolean, left: Recipe, right: Recipe, requiredItem: string){
   if (!left.producedIn) return right
   if (!right.producedIn) return left
@@ -88,6 +96,16 @@ function bestMatch(searchRates: ItemRate[], searchInput: boolean, left: Recipe, 
   return leftMatches >= rightMatches ? left : right
 }
 const getBestRecipe = (rates: ItemRate[], ratesAreOutput: boolean, requiredItem: string) => recipes.reduce((prev, curr) => bestMatch(rates, ratesAreOutput, prev, curr, requiredItem), defaultRecipe)
+
+export const items: Item[] = [
+  ...Object.entries(docs.FGItemDescriptor).map(([key, value]) => ({ id: key, display: value.mDisplayName })),
+  ...Object.entries(docs.FGItemDescriptorBiomass).map(([key, value]) => ({ id: key, display: value.mDisplayName })),
+  ...Object.entries(docs.FGItemDescriptorNuclearFuel).map(([key, value]) => ({ id: key, display: value.mDisplayName })),
+  ...Object.entries(docs.FGResourceDescriptor).map(([key, value]) => ({ id: key, display: value.mDisplayName })),
+  ...Object.entries(docs.FGConsumableDescriptor).map(([key, value]) => ({ id: key, display: value.mDisplayName })),
+]
+
+export const displayName = (itemId: string) => items.find(i => i.id === itemId)?.display ?? itemId
 
 export function handleId(buildingId: string, isInput: boolean, itemId: string){
   return `${buildingId}||${isInput ? "target" : "source"}||${itemId}`
@@ -121,6 +139,29 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
         set(newFactory, true)
       },
 
+      set(update){
+        set(state => update(state))
+      },
+
+      setBuilding(buildingId, update){
+        set(state => {
+          const building = state.buildings.find(b => b.id === buildingId)
+          if (!building) throw new Error("Tried to set non-existent building")
+
+          const newBuildings = state.buildings.map(b => {
+            if (b.id === buildingId) return update(b)
+
+            return b;
+          })
+
+          return {
+            buildings: newBuildings,
+            updatedAt: new Date().toUTCString()
+          }
+        })
+        return get().buildings.find(b => b.id === buildingId)
+      },
+
       add(params){
         const recipe = params?.recipe ? params.recipe : get().buildings.length === 0 ? defaultRecipe : get().buildings[0].data.recipe
 
@@ -150,30 +191,10 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
       },
 
       setRecipe(buildingId, recipeId){
-        const building = get().buildings.find(b => b.id === buildingId)
-        if (!building) return
-
         const recipe = getRecipe(recipeId)
         if (!recipe) return
-
-        const newBuildings = get().buildings.map(b => {
-          if (b.id === buildingId) return {
-            ...b,
-            data: {
-              ...b.data,
-              recipe: recipe
-            }
-          }
-
-          return b;
-        })
-
-        set({
-          buildings: newBuildings
-        })
-
-        set({ updatedAt: new Date().toUTCString() })
-        return get().buildings.find(b => b.id === buildingId)
+        
+        return get().setBuilding(buildingId, building => ({...building, data: { ...building.data, recipe: recipe }}))
       },
 
       applyNodeChanges(changes){
