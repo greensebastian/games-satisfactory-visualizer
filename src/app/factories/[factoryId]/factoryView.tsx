@@ -1,6 +1,6 @@
 'use client'
 
-import { Building, displayName, Factory, handleId, recipes, useFactoryStore } from "../factory"
+import { availableCount, Building, displayName, Factory, handleId, recipes, useFactoryStore } from "../factory"
 import { Node, ReactFlow, Position, Handle, NodeProps, useUpdateNodeInternals } from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ export function FactoryView() {
         />
         </div>
       </div>
-      <pre>{JSON.stringify(factory, null, 2)}</pre>
+      <pre suppressHydrationWarning>{JSON.stringify(factory, null, 2)}</pre>
     </div>
   )
 }
@@ -50,6 +50,7 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
   const store = useFactoryStore()
   const setRecipe = useStore(store, s => s.setRecipe)
   const setBuilding = useStore(store, s => s.setBuilding)
+  const factory = useStore(store)
 
   return (
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
@@ -57,12 +58,19 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
       <span className="text-center">{data.recipe.producedIn}</span>
       <div className="flex items-stretch justify-between text-nowrap">
         <div className="flex flex-col flex-1 justify-around gap-2 py-1">
-          {data.recipe.requires.map(input => (
-            <div key={`input-${input.item}`} className="relative px-2">
-              <Handle type="target" position={Position.Left} isConnectable={true} id={handleId(id, true, input.item)}/>
-              {data.count * input.rate} {displayName(input.item)}
-            </div>
-          ))}
+          {data.recipe.requires.map(input => {
+            const handle = handleId(id, true, input.item)
+            const available = availableCount(factory, handle)
+            const required = data.count * input.rate
+            const diff = available - required
+            const diffClass = diff < 0 ? "bg-red-400/50" : diff < required * 0.1 ? "bg-green-400/50" : "bg-yellow-400/50"
+            return (
+              <div key={`input-${input.item}`} className="relative px-2">
+                <Handle type="target" position={Position.Left} isConnectable={true} id={handle}/>
+                <span className={"px-1 py-[0.5] " + diffClass}>{diff >= 0 ? `+${diff}` : diff}</span> {required} {displayName(input.item)}
+              </div>
+            )
+          })}
         </div>
 
         <div className="flex flex-col flex-1 justify-around text-right">

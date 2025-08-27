@@ -27,6 +27,58 @@ export type Factory = FactoryProps & {
   onConnectEnd(event: MouseEvent | TouchEvent, connectionState: FinalConnectionState): Factory["buildings"][number] | undefined
 }
 
+function producedBy(factory: Factory, buildingId: string, itemId: string){
+  const building = factory.buildings.find(b => b.id === buildingId)
+  if (!building) return 0
+
+  return building.data.count * (building.data.recipe.produces.find(ir => ir.item === itemId)?.rate ?? 0)
+}
+
+function requiredBy(factory: Factory, buildingId: string, itemId: string){
+  const building = factory.buildings.find(b => b.id === buildingId)
+  if (!building) return 0
+
+  return building.data.count * (building.data.recipe.requires.find(ir => ir.item === itemId)?.rate ?? 0)
+}
+
+export function availableCount(factory: Factory, handleId: string){
+  const handle = reverseHandleId(handleId)
+  const itemId = handle.itemId
+  
+  const connectionsWithItem = factory.connections.flatMap(c => {
+    if (!c.sourceHandle || !c.targetHandle) return []
+    const source = reverseHandleId(c.sourceHandle)
+    const target = reverseHandleId(c.targetHandle)
+    if (source.itemId !== itemId || target.itemId !== itemId) return []
+    const sourceBuilding = factory.buildings.find(b => b.id === source.buildingId)
+    const targetBuilding = factory.buildings.find(b => b.id === target.buildingId)
+    if (!sourceBuilding || !targetBuilding) return []
+    return {source, target, sourceBuilding, targetBuilding}
+  })
+
+  const consumed = new Map<string, number>()
+  for(const building of factory.buildings){
+    let available = producedBy(factory, building.id, itemId)
+    if (available <= 0) continue
+    let lastSeen: string | undefined
+    for(const connection of connectionsWithItem){
+      if (connection.sourceBuilding.id !== building.id) continue
+      lastSeen = connection.targetBuilding.id
+      const required = requiredBy(factory, connection.targetBuilding.id, itemId)
+      const used = consumed.get(connection.targetBuilding.id) ?? 0
+      const diff = required - used
+      if (diff > 0){
+        const added = Math.min(Math.max(diff, 0), available)
+        consumed.set(connection.targetBuilding.id, used + added)
+        available -= added
+      }
+    }
+    if (lastSeen) consumed.set(lastSeen, (consumed.get(lastSeen) ?? 0) + available)
+  }
+
+  return consumed.get(handle.buildingId) ?? 0
+}
+
 export type Building = {
   count: number
   recipe: Recipe
@@ -263,7 +315,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
 
           return targetNode
         }
-      },
+      }
     }), {
       name: `${storagePrefix}${initProps?.id ?? DEFAULT_PROPS.id}`
     })
