@@ -53,7 +53,7 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
 
   return (
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
-      <div className="flex justify-center items-center"><Input value={data.count} type="number" step={0.25} className="w-20 remove-arrow" onChange={e => setBuilding(id, s => ({ ...s, data: {...s.data, count: parseFloat(e.currentTarget.value)} }))} /><Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /></div>
+      <div className="flex justify-center items-center"><Input value={data.count} type="number" step={0.25} className="w-14 remove-arrow" onChange={e => setBuilding(id, s => ({ ...s, data: {...s.data, count: parseFloat(e.currentTarget.value)} }))} /><Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /></div>
       <span className="text-center">{data.recipe.producedIn}</span>
       <div className="flex items-stretch justify-between text-nowrap">
         <div className="flex flex-col flex-1 justify-around gap-2 py-1">
