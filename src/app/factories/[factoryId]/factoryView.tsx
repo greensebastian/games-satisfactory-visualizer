@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "../../../components/ui/combobox";
 import { useStore } from "zustand";
 import { Input } from "@/components/ui/input";
+import { Fragment } from "react";
 
 const nodeTypes = {
   buildingNode: BuildingNode
@@ -56,8 +57,8 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
     <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
       <div className="flex justify-center items-center"><Input value={data.count} type="number" step={0.25} className="w-14 remove-arrow" onChange={e => setBuilding(id, s => ({ ...s, data: {...s.data, count: parseFloat(e.currentTarget.value)} }))} /><Combobox options={recipes.map(r => ({value: r.id, label: r.name}))} selectedOption={data.recipe.id} setOption={(recipeId) => setRecipe(id, recipeId) } /></div>
       <span className="text-center">{data.recipe.producedIn}</span>
-      <div className="flex items-stretch justify-between text-nowrap">
-        <div className="flex flex-col flex-1 justify-around gap-2 py-1">
+      <div className="flex items-stretch justify-between text-nowrap gap-1">
+        <div className="grid grid-cols-[repeat(3,max-content)] place-items-stretch flex-1 gap-1 py-1">
           {data.recipe.requires.map(input => {
             const handle = handleId(id, true, input.item)
             const available = availableCount(factory, handle)
@@ -65,10 +66,18 @@ function BuildingNode({ id, data } : NodeProps<Node<Building>>){
             const diff = available - required
             const diffClass = diff < 0 ? "bg-red-400/50" : diff < required * 0.1 ? "bg-green-400/50" : "bg-yellow-400/50"
             return (
-              <div key={`input-${input.item}`} className="relative px-2">
-                <Handle type="target" position={Position.Left} isConnectable={true} id={handle}/>
-                <span className={"px-1 py-[0.5] " + diffClass}>{diff >= 0 ? `+${diff}` : diff}</span> {required} {displayName(input.item)}
-              </div>
+              <Fragment key={`input-${input.item}`}>
+                <div className="relative">
+                  <Handle type="target" position={Position.Left} isConnectable={true} id={handle}/>
+                  <div className={"pl-2 pr-1 py-[0.5] " + diffClass}>{diff >= 0 ? `+${diff}` : diff}</div>
+                </div>
+                <div className="flex items-center">
+                  {required}
+                </div>
+                <div className="flex items-center">
+                  {displayName(input.item)}
+                </div>
+              </Fragment>
             )
           })}
         </div>
