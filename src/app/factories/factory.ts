@@ -246,7 +246,14 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
         const recipe = getRecipe(recipeId)
         if (!recipe) return
         
-        return get().setBuilding(buildingId, building => ({...building, data: { ...building.data, recipe: recipe }}))
+        const factory = get()
+        const changes: EdgeChange[] = factory.connections.filter(c => c.source === buildingId || c.target === buildingId).map(c => ({
+          type: "remove",
+          id: c.id
+        }))
+        factory.applyEdgeChanges(changes)
+
+        return factory.setBuilding(buildingId, building => ({...building, data: { ...building.data, recipe: recipe }}))
       },
 
       applyNodeChanges(changes){

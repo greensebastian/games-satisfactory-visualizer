@@ -8,6 +8,7 @@ import { Combobox } from "../../../components/ui/combobox";
 import { useStore } from "zustand";
 import { Input } from "@/components/ui/input";
 import { Fragment } from "react";
+import Link from "next/link";
 
 const nodeTypes = {
   buildingNode: BuildingNode
@@ -28,6 +29,7 @@ export function FactoryView() {
     <div className="p-4 w-screen">
       <Input value={factory.name} onChange={e => factory.set(() => ({ name: e.currentTarget.value }))}></Input>
       <Button onClick={() => factory.add()} className="mt-4">Add machine</Button>
+      <Link href="/factories" className="mt-4 ml-4"><Button variant={"secondary"}>Show factories</Button></Link>
       <div className="w-full h-200 pt-4 text-black">
         <div className="w-fill h-full rounded-md border-solid border-white border-1">
         <ReactFlow
