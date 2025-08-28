@@ -60,7 +60,6 @@ jobs:
         id: tf-plan-string
         working-directory: ./terraform
         run: |
-          cd terraform
           TERRAFORM_PLAN=$(terraform show -no-color ${{ steps.meta.outputs.artifact_name }})
           # Limit the output because step summary has an unknown length limit imposed.
           TERRAFORM_PLAN=${TERRAFORM_PLAN:0:127900}
