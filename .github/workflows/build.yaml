@@ -5,6 +5,7 @@ on:
     branches: ["*"]
 
 permissions:
+  id-token: write
   packages: write
 
 jobs:
@@ -30,7 +31,7 @@ jobs:
           echo "LATEST_TAG=latest" >> $GITHUB_OUTPUT
           echo "PREVIEW_TAG=${GITHUB_REF_NAME}-preview" >> $GITHUB_OUTPUT
 
-      - name: Build & Push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./src
