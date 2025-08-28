@@ -56,6 +56,32 @@ jobs:
           path: ./terraform/${{ steps.meta.outputs.artifact_name }}
           if-no-files-found: error
 
+      - name: Create readable output
+        id: tf-plan-string
+        working-directory: ./terraform
+        run: |
+          cd terraform
+          TERRAFORM_PLAN=$(terraform show -no-color ${{ steps.meta.outputs.artifact_name }})
+          # Limit the output because step summary has an unknown length limit imposed.
+          TERRAFORM_PLAN=${TERRAFORM_PLAN:0:127900}
+
+          delimiter="$(openssl rand -hex 8)"
+          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "## Terraform Plan Output" >> $GITHUB_OUTPUT
+          echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```terraform' >> $GITHUB_OUTPUT
+          echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+
+      - name: Publish readable output to task summary
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+
   apply:
     name: "Terraform Apply"
     needs: plan
