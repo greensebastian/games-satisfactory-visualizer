@@ -5,7 +5,6 @@ on:
     branches: ["*"]
 
 permissions:
-  id-token: write
   packages: write
 
 jobs:
@@ -28,15 +27,13 @@ jobs:
         id: vars
         run: |
           echo "SHA_TAG=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          echo "LATEST_TAG=latest" >> $GITHUB_OUTPUT
-          echo "PREVIEW_TAG=${GITHUB_REF_NAME}-preview" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./src
+
           push: true
           tags: |
-            "${{ github.repository }}:sha-${{ steps.vars.outputs.SHA_TAG }}"
-            "${{ github.repository }}:latest"
-            "${{ github.repository }}:${{ github.ref_name }}"
+            "ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.SHA_TAG }}"
+            "ghcr.io/${{ github.repository }}:latest"
