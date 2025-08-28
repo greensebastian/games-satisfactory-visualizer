@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   apply:
+    name: "Plan and apply terraform"
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
