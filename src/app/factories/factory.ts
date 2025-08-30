@@ -1,6 +1,6 @@
 import docs from "@/lib/typedDocs.json"
 import { v7 as uuid7 } from "uuid"
-import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, FinalConnectionState, InternalNode, Node, NodeChange, Position } from "@xyflow/react";
+import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeAddChange, EdgeChange, EdgeRemoveChange, FinalConnectionState, Node, NodeChange } from "@xyflow/react";
 import { createStore } from "zustand";
 import { persist } from 'zustand/middleware'
 import { createContext, useContext } from "react";
@@ -247,11 +247,28 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
         if (!recipe) return
         
         const factory = get()
-        const changes: EdgeChange[] = factory.connections.filter(c => c.source === buildingId || c.target === buildingId).map(c => ({
-          type: "remove",
+        const toRemove = factory.connections.filter(c => {
+          if (c.source !== buildingId && c.target !== buildingId) return false
+
+          if (!c.sourceHandle || !c.targetHandle) throw new Error("Invalid connection to remove.")
+
+          const sourceHandle = reverseHandleId(c.sourceHandle)
+          const targetHandle = reverseHandleId(c.targetHandle)
+
+          if (sourceHandle.buildingId === buildingId && recipe.produces.some(i => i.item === sourceHandle.itemId)){
+            return false
+          }
+          if (targetHandle.buildingId === buildingId && recipe.requires.some(i => i.item === targetHandle.itemId)){
+            return false
+          }
+
+          return true
+        })
+
+        factory.applyEdgeChanges(toRemove.map(c => ({
+          type: 'remove',
           id: c.id
-        }))
-        factory.applyEdgeChanges(changes)
+        })))
 
         return factory.setBuilding(buildingId, building => ({...building, data: { ...building.data, recipe: recipe }}))
       },
