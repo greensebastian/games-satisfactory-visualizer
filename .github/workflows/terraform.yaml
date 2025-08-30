@@ -1,6 +1,10 @@
 name: Terraform
 
 on:
+  push:
+    branches: ["*"]
+    paths:
+      - "terraform/**"
   workflow_dispatch:
     inputs:
       environment:
@@ -12,11 +16,14 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+
 jobs:
   plan:
     name: "Terraform Plan"
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.env.environment }}
     outputs:
       plan-artifact-name: ${{ steps.meta.outputs.artifact_name }}
     steps:
@@ -47,7 +54,7 @@ jobs:
 
       - name: Set workspace ${{ inputs.environment }}
         working-directory: ./terraform
-        run: terraform workspace select -or-create ${{ inputs.environment }}
+        run: terraform workspace select -or-create ${{ github.env.environment }}
 
       - name: Terraform Plan (save plan)
         working-directory: ./terraform

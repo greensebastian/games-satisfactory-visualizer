@@ -3,6 +3,8 @@ name: Build and push docker
 on:
   push:
     branches: ["*"]
+    paths:
+      - "src/**"
 
 permissions:
   packages: write
