@@ -17,13 +17,13 @@ permissions:
   contents: read
 
 env:
-  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+  environment: ${{ inputs.environment || 'dev' }}
 
 jobs:
   plan:
     name: "Terraform Plan"
     runs-on: ubuntu-latest
-    environment: ${{ github.env.environment }}
+    environment: ${{ inputs.environment || 'dev' }}
     outputs:
       plan-artifact-name: ${{ steps.meta.outputs.artifact_name }}
     steps:
@@ -52,9 +52,9 @@ jobs:
             -backend-config="key=${{ vars.BACKEND_KEY }}" \
             -backend-config="use_azuread_auth=true"
 
-      - name: Set workspace ${{ inputs.environment }}
+      - name: Set workspace ${{ env.environment }}
         working-directory: ./terraform
-        run: terraform workspace select -or-create ${{ github.env.environment }}
+        run: terraform workspace select -or-create ${{ env.environment }}
 
       - name: Terraform Plan (save plan)
         working-directory: ./terraform
@@ -98,7 +98,7 @@ jobs:
     name: "Terraform Apply"
     needs: plan
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment || 'dev' }}
     steps:
       - uses: actions/checkout@v4
 
