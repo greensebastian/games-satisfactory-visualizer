@@ -121,6 +121,10 @@ jobs:
             -backend-config="key=${{ vars.BACKEND_KEY }}" \
             -backend-config="use_azuread_auth=true"
 
+      - name: Set workspace ${{ env.environment }}
+        working-directory: ./terraform
+        run: terraform workspace select -or-create ${{ env.environment }}
+
       - name: Download plan artifact
         uses: actions/download-artifact@v4
         with:
