@@ -55,6 +55,10 @@ resource "azurerm_linux_web_app" "app" {
       docker_image_name   = "greensebastian/games-satisfactory-visualizer:latest"
     }
   }
+
+  app_settings = {
+    DOCKER_ENABLE_CI = "true"
+  }
 }
 
 output "site_url" {
