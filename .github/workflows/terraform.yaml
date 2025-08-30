@@ -45,6 +45,10 @@ jobs:
             -backend-config="key=${{ vars.BACKEND_KEY }}" \
             -backend-config="use_azuread_auth=true"
 
+      - name: Set workspace ${{ inputs.environment }}
+        working-directory: ./terraform
+        run: terraform workspace select -or-create ${{ inputs.environment }}
+
       - name: Terraform Plan (save plan)
         working-directory: ./terraform
         run: terraform plan -input=false -out "${{ steps.meta.outputs.artifact_name }}"
