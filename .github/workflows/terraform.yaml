@@ -52,6 +52,8 @@ jobs:
       - name: Terraform Plan (save plan)
         working-directory: ./terraform
         run: terraform plan -input=false -out "${{ steps.meta.outputs.artifact_name }}"
+        env:
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
