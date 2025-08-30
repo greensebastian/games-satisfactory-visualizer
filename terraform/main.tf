@@ -28,8 +28,7 @@ module "regions" {
 data "azuread_client_config" "current" {}
 
 data "azurerm_resource_group" "rg" {
-  name     = module.naming.resource_group.name
-  location = local.region.name
+  name = module.naming.resource_group.name
 }
 
 resource "azurerm_service_plan" "plan" {
