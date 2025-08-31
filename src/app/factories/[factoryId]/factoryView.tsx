@@ -40,7 +40,7 @@ export function FactoryView() {
   })
 
   return (
-    <div className="p-4 w-screen">
+    <div className="p-4 pb-0 w-screen">
       <Input value={factory.name} onChange={e => factory.set(() => ({ name: e.currentTarget.value }))}></Input>
       <Button onClick={() => factory.add()} className="mt-4">Add machine</Button>
       <Link href="/factories" className="mt-4 ml-4"><Button variant={"secondary"}>Show factories</Button></Link>
@@ -63,7 +63,7 @@ export function FactoryView() {
           ))}
         </TableBody>
       </Table>
-      <div className="w-full h-200 pt-4 text-black">
+      <div className="w-full h-svh py-4 text-black">
         <div className="w-fill h-full rounded-md border-solid border-white border-1">
         <ReactFlow
           nodeTypes={nodeTypes}
