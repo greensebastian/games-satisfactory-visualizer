@@ -1,6 +1,6 @@
 import docs from "@/lib/typedDocs.json"
 import { v7 as uuid7 } from "uuid"
-import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeAddChange, EdgeChange, EdgeRemoveChange, FinalConnectionState, Node, NodeChange } from "@xyflow/react";
+import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, FinalConnectionState, Node, NodeChange } from "@xyflow/react";
 import { createStore } from "zustand";
 import { persist } from 'zustand/middleware'
 import { createContext, useContext } from "react";
@@ -27,14 +27,14 @@ export type Factory = FactoryProps & {
   onConnectEnd(event: MouseEvent | TouchEvent, connectionState: FinalConnectionState): Factory["buildings"][number] | undefined
 }
 
-function producedBy(factory: Factory, buildingId: string, itemId: string){
+export function producedBy(factory: Factory, buildingId: string, itemId: string){
   const building = factory.buildings.find(b => b.id === buildingId)
   if (!building) return 0
 
   return building.data.count * (building.data.recipe.produces.find(ir => ir.item === itemId)?.rate ?? 0)
 }
 
-function requiredBy(factory: Factory, buildingId: string, itemId: string){
+export function requiredBy(factory: Factory, buildingId: string, itemId: string){
   const building = factory.buildings.find(b => b.id === buildingId)
   if (!building) return 0
 
@@ -77,6 +77,13 @@ export function availableCount(factory: Factory, handleId: string){
   }
 
   return consumed.get(handle.buildingId) ?? 0
+}
+
+export function unconnected(factory: Factory){
+  const inputHandles = factory.buildings.flatMap(b => b.data.recipe.requires.map(i => handleId(b.id, true, i.item)))
+  const outputHandles = factory.buildings.flatMap(b => b.data.recipe.produces.map(i => handleId(b.id, false, i.item)))
+  const unconnected = [...inputHandles, ...outputHandles].filter(handle => !factory.connections.find(c => c.sourceHandle === handle || c.targetHandle === handle))
+  return unconnected.map(reverseHandleId)
 }
 
 export type Building = {
