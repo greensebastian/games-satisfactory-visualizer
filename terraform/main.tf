@@ -61,6 +61,12 @@ resource "azurerm_linux_web_app" "app" {
   }
 }
 
+resource "azurerm_app_service_custom_hostname_binding" "sebastiangreen_se" {
+  hostname            = "${local.identifier}.sebastiangreen.se"
+  app_service_name    = azurerm_linux_web_app.app.name
+  resource_group_name = azurerm_linux_web_app.app.resource_group_name
+}
+
 output "site_url" {
   value = azurerm_linux_web_app.app.default_hostname
 }
