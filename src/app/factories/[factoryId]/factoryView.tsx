@@ -20,13 +20,16 @@ import {
   Handle,
   NodeProps,
   useUpdateNodeInternals,
+  useReactFlow,
+  OnConnectEnd,
+  XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "../../../components/ui/combobox";
 import { useStore } from "zustand";
 import { Input } from "@/components/ui/input";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -37,18 +40,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const nodeTypes = {
   buildingNode: BuildingNode,
 } as const;
 
 export function FactoryView() {
+  const { screenToFlowPosition } = useReactFlow();
   const store = useFactoryStore();
   const factory = useStore(store);
   const updateNodeInternals = useUpdateNodeInternals();
 
-  const onConnectEnd: Factory["onConnectEnd"] = (event, connectionState) => {
-    const createdBuilding = factory.onConnectEnd(event, connectionState);
+  const [open, setOpen] = useState(false);
+
+  const onConnectEnd: OnConnectEnd = (event, connectionState) => {
+    const viewportPosition: XYPosition =
+      "clientX" in event && "clientY" in event
+        ? { x: event.clientX, y: event.clientY }
+        : { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    const flowPosition = screenToFlowPosition(viewportPosition);
+    const createdBuilding = factory.onConnectEnd(flowPosition, connectionState);
     if (createdBuilding) updateNodeInternals(createdBuilding.id);
     return createdBuilding;
   };
@@ -95,36 +111,42 @@ export function FactoryView() {
         <Button variant={"secondary"}>Back to factories</Button>
       </Link>
       <Input
-        className="mt-4"
+        className="mt-4 shrink-0"
         value={factory.name}
         onChange={(e) => factory.set(() => ({ name: e.currentTarget.value }))}
       ></Input>
       <Button onClick={() => factory.add()} className="mt-4">
         Add machine
       </Button>
-      <Table className="mt-4 [&_th]:px-4 [&_td]:px-4">
-        <TableCaption>
-          Inputs and outputs not connected to anything
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-1">Item</TableHead>
-            <TableHead className="w-1">Input/Output</TableHead>
-            <TableHead>Amount</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {reducedHandles.map((handle) => (
-            <TableRow key={`${handle.itemId}-${handle.isInput}`}>
-              <TableCell className="font-medium">
-                {handle.itemDisplayName}
-              </TableCell>
-              <TableCell>{handle.isInput ? "Input" : "Output"}</TableCell>
-              <TableCell>{String(handle.amount)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col">
+        <CollapsibleTrigger className="flex flex-col" asChild>
+          <Button className="mt-4" variant={"secondary"}>
+            {open ? "Hide" : "Show"} disconnected inputs and outputs
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <Table className="mt-2 [&_th]:px-4 [&_td]:px-4">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1">Item</TableHead>
+                <TableHead className="w-1">Input/Output</TableHead>
+                <TableHead>Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reducedHandles.map((handle) => (
+                <TableRow key={`${handle.itemId}-${handle.isInput}`}>
+                  <TableCell className="font-medium">
+                    {handle.itemDisplayName}
+                  </TableCell>
+                  <TableCell>{handle.isInput ? "Input" : "Output"}</TableCell>
+                  <TableCell>{String(handle.amount)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleContent>
+      </Collapsible>
       <div className="w-full h-svh py-4 text-black">
         <div className="w-fill h-full rounded-md border-solid border-white border-1">
           <ReactFlow
