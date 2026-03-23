@@ -4,7 +4,6 @@ import {
   availableCount,
   Building,
   displayName,
-  Factory,
   handleId,
   producedBy,
   recipes,
@@ -34,7 +33,6 @@ import Link from "next/link";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -181,7 +179,24 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
   );
 
   return (
-    <div className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch">
+    <div
+      className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch"
+      onWheelCapture={(e) => {
+        if (
+          (e.target as Element).closest("[data-radix-popper-content-wrapper]")
+        )
+          return;
+        setBuilding(id, (s) => ({
+          ...s,
+          data: {
+            ...s.data,
+            count:
+              s.data.count + (e.deltaY < 0 ? 0.25 : e.deltaY > 0 ? -0.25 : 0),
+          },
+        }));
+        e.stopPropagation();
+      }}
+    >
       <div className="flex justify-center items-center">
         <Input
           value={data.count}
