@@ -289,6 +289,10 @@ export function reverseHandleId(handleId: string) {
   };
 }
 
+export function now() {
+  return new Date().toISOString();
+}
+
 type FactoryStore = ReturnType<typeof createFactoryStore>;
 
 export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
@@ -303,7 +307,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
         name: "Untitled factory",
         buildings: [],
         connections: [],
-        updatedAt: new Date().toUTCString(),
+        updatedAt: now(),
 
         replace(newFactory) {
           set(newFactory, true);
@@ -327,7 +331,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
 
             return {
               buildings: newBuildings,
-              updatedAt: new Date().toUTCString(),
+              updatedAt: now(),
             };
           });
           return get().buildings.find((b) => b.id === buildingId);
@@ -367,7 +371,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
             ],
           });
 
-          set({ updatedAt: new Date().toUTCString() });
+          set({ updatedAt: now() });
           return get().buildings.find((b) => b.id === id)!;
         },
 
@@ -421,7 +425,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
           set({
             buildings: applyNodeChanges(changes, get().buildings),
           });
-          set({ updatedAt: new Date().toUTCString() });
+          set({ updatedAt: now() });
         },
 
         applyEdgeChanges(changes) {
@@ -430,14 +434,14 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
           set({
             connections: applyEdgeChanges(changes, get().connections),
           });
-          set({ updatedAt: new Date().toUTCString() });
+          set({ updatedAt: now() });
         },
 
         onConnect(params) {
           set({
             connections: addEdge(params, get().connections),
           });
-          set({ updatedAt: new Date().toUTCString() });
+          set({ updatedAt: now() });
         },
 
         onConnectEnd(releasePosition, connectionState, reactFlow) {
