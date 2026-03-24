@@ -10,6 +10,7 @@ import {
   FinalConnectionState,
   Node,
   NodeChange,
+  ReactFlowInstance,
   XYPosition,
 } from "@xyflow/react";
 import { createStore } from "zustand";
@@ -50,7 +51,8 @@ export type Factory = FactoryProps & {
   onConnectEnd(
     releasePosition: XYPosition,
     connectionState: FinalConnectionState,
-  ): Factory["buildings"][number] | undefined;
+    reactFlow: ReactFlowInstance<Node<Building>>,
+  ): void;
 };
 
 export function producedBy(
@@ -438,7 +440,7 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
           set({ updatedAt: new Date().toUTCString() });
         },
 
-        onConnectEnd(flowPosition, connectionState) {
+        onConnectEnd(releasePosition, connectionState, reactFlow) {
           if (!connectionState.toNode) {
             const sourceNode = connectionState.fromNode;
             const sourceHandle = connectionState.fromHandle;
@@ -454,9 +456,14 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
               requiredItem,
             );
             const targetNode = get().add({
-              position: flowPosition,
+              position: releasePosition,
               recipe: targetRecipe,
             });
+            const targetHandleId = handleId(
+              targetNode.id,
+              sourceIsOutput,
+              requiredItem,
+            );
 
             setTimeout(() => {
               const target = get().buildings.find(
@@ -466,11 +473,6 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
                 (b) => b.id === sourceNode?.id,
               );
               if (target && source) {
-                const targetHandleId = handleId(
-                  target.id,
-                  sourceIsOutput,
-                  requiredItem,
-                );
                 const realSourceHandle = sourceIsOutput
                   ? sourceHandle.id
                   : targetHandleId;
@@ -487,9 +489,25 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
                   });
                 }
               }
-            }, 0);
 
-            return targetNode;
+              const internalNode = reactFlow.getInternalNode(targetNode.id);
+              for (const handle of (
+                internalNode?.internals.handleBounds?.source ?? []
+              ).concat(internalNode?.internals.handleBounds?.target ?? [])) {
+                if (handle.id === targetHandleId) {
+                  get().applyNodeChanges([
+                    {
+                      type: "position",
+                      id: targetNode.id,
+                      position: {
+                        x: targetNode.position.x - handle.x,
+                        y: targetNode.position.y - handle.y,
+                      },
+                    },
+                  ]);
+                }
+              }
+            }, 0);
           }
         },
       }),

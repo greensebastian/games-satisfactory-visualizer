@@ -18,7 +18,6 @@ import {
   Position,
   Handle,
   NodeProps,
-  useUpdateNodeInternals,
   useReactFlow,
   OnConnectEnd,
   XYPosition,
@@ -43,16 +42,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useDelay } from "@/lib/useDelay";
 
 const nodeTypes = {
   buildingNode: BuildingNode,
 } as const;
 
 export function FactoryView() {
-  const { screenToFlowPosition } = useReactFlow();
+  const reactFlow = useReactFlow<Node<Building>>();
   const store = useFactoryStore();
   const factory = useStore(store);
-  const updateNodeInternals = useUpdateNodeInternals();
 
   const [open, setOpen] = useState(false);
 
@@ -61,10 +60,8 @@ export function FactoryView() {
       "clientX" in event && "clientY" in event
         ? { x: event.clientX, y: event.clientY }
         : { x: event.touches[0].clientX, y: event.touches[0].clientY };
-    const flowPosition = screenToFlowPosition(viewportPosition);
-    const createdBuilding = factory.onConnectEnd(flowPosition, connectionState);
-    if (createdBuilding) updateNodeInternals(createdBuilding.id);
-    return createdBuilding;
+    const flowPosition = reactFlow.screenToFlowPosition(viewportPosition);
+    factory.onConnectEnd(flowPosition, connectionState, reactFlow);
   };
 
   const unconnectedHandles = unconnected(factory);
@@ -178,8 +175,12 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
     data.recipe.requires.map((ir) => ir.item),
   );
 
+  // Hack because of move on creation
+  const visible = useDelay();
+
   return (
     <div
+      style={{ opacity: visible ? 1 : 0 }}
       className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch"
       onWheelCapture={(e) => {
         if (
