@@ -149,6 +149,7 @@ export function unconnected(factory: Factory) {
 export type Building = {
   count: number;
   recipe: Recipe;
+  done?: boolean;
 };
 
 export type Recipe = {

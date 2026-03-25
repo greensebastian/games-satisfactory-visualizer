@@ -43,6 +43,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useDelay } from "@/lib/useDelay";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 const nodeTypes = {
   buildingNode: BuildingNode,
@@ -164,6 +166,17 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
   const store = useFactoryStore();
   const setRecipe = useStore(store, (s) => s.setRecipe);
   const setBuilding = useStore(store, (s) => s.setBuilding);
+  const setBuildingData = (
+    change: (prevData: Building) => Partial<Building>,
+  ) => {
+    setBuilding(id, (s) => ({
+      ...s,
+      data: {
+        ...s.data,
+        ...change(s.data),
+      },
+    }));
+  };
   const factory = useStore(store);
   const missingInputs = factory.connections.reduce(
     (unresolvedInputItems, connection) => {
@@ -180,34 +193,31 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
 
   return (
     <div
-      style={{ opacity: visible ? 1 : 0 }}
-      className="bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch"
+      style={{ opacity: visible ? (data.done ? 0.5 : 1) : 0 }}
+      className={cn(
+        "bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch",
+      )}
       onWheelCapture={(e) => {
         if (
           (e.target as Element).closest("[data-radix-popper-content-wrapper]")
         )
           return;
-        setBuilding(id, (s) => ({
-          ...s,
-          data: {
-            ...s.data,
-            count:
-              s.data.count + (e.deltaY < 0 ? 0.25 : e.deltaY > 0 ? -0.25 : 0),
-          },
+        setBuildingData((oldData) => ({
+          count:
+            oldData.count + (e.deltaY < 0 ? 0.25 : e.deltaY > 0 ? -0.25 : 0),
         }));
         e.stopPropagation();
       }}
     >
-      <div className="flex justify-center items-center">
+      <div className="flex justify-center items-center gap-2">
         <Input
           value={data.count}
           type="number"
           step={0.25}
           className="w-14 remove-arrow"
           onChange={(e) =>
-            setBuilding(id, (s) => ({
-              ...s,
-              data: { ...s.data, count: parseFloat(e.currentTarget.value) },
+            setBuildingData(() => ({
+              count: parseFloat(e.currentTarget.value),
             }))
           }
         />
@@ -216,6 +226,13 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
           selectedOption={data.recipe.id}
           setOption={(recipeId) => setRecipe(id, recipeId)}
         />
+        <Checkbox
+          size="lg"
+          checked={data.done ?? false}
+          onCheckedChange={(state) =>
+            setBuildingData(() => ({ done: state === true }))
+          }
+        ></Checkbox>
       </div>
       <span className="text-center">{data.recipe.producedIn}</span>
       <div className="flex items-stretch justify-between text-nowrap gap-1">
