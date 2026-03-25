@@ -1,10 +1,10 @@
-import { ReactFlowWrapper } from "./reactFlowWrapper"
+import { DynamicReactFlowWrapper } from "./dynamicReactFlowWrapper";
 
 export default async function Page({
   params,
 }: {
-  params: Promise<{ factoryId: string }>
+  params: Promise<{ factoryId: string }>;
 }) {
-  const { factoryId } = await params
-  return <ReactFlowWrapper factoryId={factoryId} />
+  const { factoryId } = await params;
+  return <DynamicReactFlowWrapper factoryId={factoryId} />;
 }

@@ -1,4 +1,4 @@
-import { Export } from "./export";
+import { DynamicExport } from "./dynamicExport";
 
 export default async function Page({
   params,
@@ -6,5 +6,5 @@ export default async function Page({
   params: Promise<{ factoryId: string }>;
 }) {
   const { factoryId } = await params;
-  return <Export factoryId={factoryId} />;
+  return <DynamicExport factoryId={factoryId} />;
 }
