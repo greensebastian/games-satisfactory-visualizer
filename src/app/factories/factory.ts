@@ -168,6 +168,7 @@ export type ItemRate = {
 export type Item = {
   id: string;
   display: string;
+  form: "solid" | "liquid" | "invalid";
 };
 
 const itemRateRegex = /\([^()]+\)/g;
@@ -251,31 +252,52 @@ const getBestRecipe = (
     defaultRecipe,
   );
 
+function getForm(item: { mForm: string }): Item["form"] {
+  switch (item.mForm) {
+    case "RF_SOLID":
+      return "solid";
+    case "RF_LIQUID":
+      return "liquid";
+    default:
+      return "invalid";
+  }
+}
+
 export const items: Item[] = [
   ...Object.entries(docs.FGItemDescriptor).map(([key, value]) => ({
     id: key,
     display: value.mDisplayName,
+    form: getForm(value),
   })),
   ...Object.entries(docs.FGItemDescriptorBiomass).map(([key, value]) => ({
     id: key,
     display: value.mDisplayName,
+    form: getForm(value),
   })),
   ...Object.entries(docs.FGItemDescriptorNuclearFuel).map(([key, value]) => ({
     id: key,
     display: value.mDisplayName,
+    form: getForm(value),
   })),
   ...Object.entries(docs.FGResourceDescriptor).map(([key, value]) => ({
     id: key,
     display: value.mDisplayName,
+    form: getForm(value),
   })),
   ...Object.entries(docs.FGConsumableDescriptor).map(([key, value]) => ({
     id: key,
     display: value.mDisplayName,
+    form: getForm(value),
   })),
 ];
 
 export const displayName = (itemId: string) =>
   items.find((i) => i.id === itemId)?.display ?? itemId;
+
+export const displayAmount = (itemId: string, amount: number) =>
+  items.find((i) => i.id === itemId)?.form === "liquid"
+    ? amount / 1000 // Cubic meters
+    : amount;
 
 export function handleId(buildingId: string, isInput: boolean, itemId: string) {
   return `${buildingId}||${isInput ? "target" : "source"}||${itemId}`;

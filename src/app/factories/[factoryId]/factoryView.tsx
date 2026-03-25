@@ -3,6 +3,7 @@
 import {
   availableCount,
   Building,
+  displayAmount,
   displayName,
   handleId,
   producedBy,
@@ -263,10 +264,14 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
                   <div
                     className={`pl-2 pr-1 ${diffClass} border-3  ${missingRequirementClass}`}
                   >
-                    {diff >= 0 ? `+${diff}` : diff}
+                    {diff >= 0
+                      ? `+${displayAmount(input.item, diff)}`
+                      : displayAmount(input.item, diff)}
                   </div>
                 </div>
-                <div className="flex items-center">{required}</div>
+                <div className="flex items-center">
+                  {displayAmount(input.item, required)}
+                </div>
                 <div className="flex items-center">
                   {displayName(input.item)}
                 </div>
@@ -276,15 +281,16 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
         </div>
 
         <div className="flex flex-col flex-1 justify-around text-right">
-          {data.recipe.produces.map((input) => (
-            <div key={`output-${input.item}`} className="relative px-2">
+          {data.recipe.produces.map((output) => (
+            <div key={`output-${output.item}`} className="relative px-2">
               <Handle
                 type="source"
                 position={Position.Right}
                 isConnectable={true}
-                id={handleId(id, false, input.item)}
+                id={handleId(id, false, output.item)}
               />
-              {data.count * input.rate} {displayName(input.item)}
+              {displayAmount(output.item, data.count * output.rate)}{" "}
+              {displayName(output.item)}
             </div>
           ))}
         </div>
