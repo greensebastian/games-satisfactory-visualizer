@@ -53,6 +53,7 @@ export type Factory = FactoryProps & {
     connectionState: FinalConnectionState,
     reactFlow: ReactFlowInstance<Node<Building>>,
   ): void;
+  refreshRecipes(): void;
 };
 
 export function producedBy(
@@ -535,6 +536,12 @@ export const createFactoryStore = (initProps?: Partial<FactoryProps>) => {
                 }
               }
             }, 0);
+          }
+        },
+
+        refreshRecipes() {
+          for (const building of get().buildings) {
+            get().setRecipe(building.id, building.data.recipe.id);
           }
         },
       }),

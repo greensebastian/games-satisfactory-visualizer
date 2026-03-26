@@ -105,17 +105,24 @@ export function FactoryView() {
 
   return (
     <div className="p-4 pb-0 w-screen h-screen overflow-hidden flex flex-col">
-      <Link href="/factories" className="flex flex-col">
-        <Button variant={"secondary"}>Back to factories</Button>
-      </Link>
+      <div className="flex gap-2">
+        <Link href="/factories" className="flex flex-col">
+          <Button variant={"secondary"}>Back to factories</Button>
+        </Link>
+
+        <Button onClick={() => factory.add()}>Add machine</Button>
+        <Button
+          variant={"destructive"}
+          onClick={() => factory.refreshRecipes()}
+        >
+          Refresh recipes
+        </Button>
+      </div>
       <Input
         className="mt-4 shrink-0"
         value={factory.name}
         onChange={(e) => factory.set(() => ({ name: e.currentTarget.value }))}
       ></Input>
-      <Button onClick={() => factory.add()} className="mt-4">
-        Add machine
-      </Button>
       <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col">
         <CollapsibleTrigger className="flex flex-col" asChild>
           <Button className="mt-4" variant={"secondary"}>
