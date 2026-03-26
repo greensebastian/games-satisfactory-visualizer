@@ -1,4 +1,4 @@
-import docs from "@/lib/typedDocs.json";
+import { docs } from "@/lib/typedDocs";
 import { v7 as uuid7 } from "uuid";
 import {
   addEdge,
@@ -175,7 +175,7 @@ const itemRateRegex = /\([^()]+\)/g;
 function itemRates(input: string, secondsToCreate: number): ItemRate[] {
   const results: ItemRate[] = [];
   for (const [match] of input.matchAll(itemRateRegex)) {
-    const item = match.match(/\.([a-zA-Z0-9_]+)/);
+    const item = match.match(/'.*\.([a-zA-Z0-9_]+)/);
     const amount = match.match(/Amount=(.+)/);
     if (!item || !amount) throw new Error("That failed.");
     results.push({

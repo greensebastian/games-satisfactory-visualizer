@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 
 export default function Page() {
   const [factories, setFactories] = useState<Factory[]>([]);
+  const [factoryIdPendingDeletion, setFactoryIdPendingDeletion] = useState<
+    string | undefined
+  >();
   const pathName = usePathname();
   const [changed, setChanged] = useState(true);
 
@@ -40,6 +43,20 @@ export default function Page() {
       >
         Create factory
       </Button>
+      {factoryIdPendingDeletion && (
+        <Button
+          className="w-min"
+          variant={"destructive"}
+          onClick={() => {
+            remove(factoryIdPendingDeletion);
+            setFactoryIdPendingDeletion(undefined);
+          }}
+        >
+          Confirm deletion of {factoryIdPendingDeletion}?
+          <FaTrash size={25} className="inline-block cursor-pointer" />
+        </Button>
+      )}
+
       <ul className="gap-2 flex flex-col">
         {factories
           .toSorted((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
@@ -50,13 +67,12 @@ export default function Page() {
                   {factory.name} - [{factory.id}]
                 </Button>
               </Link>
-              <Button variant={"destructive"}>
+              <Button
+                variant={"destructive"}
+                onClick={() => setFactoryIdPendingDeletion(factory.id)}
+              >
                 Delete
-                <FaTrash
-                  size={25}
-                  className="inline-block cursor-pointer"
-                  onClick={() => remove(factory.id)}
-                />
+                <FaTrash size={25} className="inline-block cursor-pointer" />
               </Button>
               <Link href={`${pathName}/${factory.id}/export`}>
                 <Button variant={"secondary"}>Export</Button>
