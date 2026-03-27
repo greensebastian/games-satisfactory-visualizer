@@ -198,8 +198,8 @@ function normalize(input: string) {
   return input.replaceAll(specialCharacters, "");
 }
 
-export const recipes: Recipe[] = Object.entries(docs.FGRecipe).map(
-  ([key, value]) => ({
+export const recipes: Recipe[] = Object.entries(docs.FGRecipe)
+  .map(([key, value]) => ({
     id: key,
     name: value.mDisplayName,
     requires: itemRates(
@@ -211,8 +211,15 @@ export const recipes: Recipe[] = Object.entries(docs.FGRecipe).map(
       parseFloat(value.mManufactoringDuration),
     ),
     producedIn: producedIn(value.mProducedIn),
-  }),
-);
+  }))
+  .toSorted((a, b) => {
+    const altRegex = /[Aa]lternate/;
+    const aIsAlt = altRegex.test(a.name);
+    const bIsAlt = altRegex.test(b.name);
+    if (aIsAlt && !bIsAlt) return 1;
+    if (bIsAlt && !aIsAlt) return -1;
+    return a.name.localeCompare(b.name);
+  });
 
 const getRecipe = (recipeId: string) =>
   recipes.find((recipe) => recipe.id === recipeId);

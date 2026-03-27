@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDebounce } from "use-debounce";
 
 type ComboboxOption = {
@@ -38,11 +38,17 @@ export function Combobox({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 200);
-  const filteredOptions = options
-    .filter((o) =>
-      o.label.toLowerCase().includes(debouncedSearch.toLowerCase()),
-    )
-    .slice(0, 10);
+  const filteredOptions = useMemo(
+    () =>
+      options
+        .filter((o) => {
+          const labels = o.label.toLowerCase().split(" ");
+          const searchWords = debouncedSearch.toLowerCase().split(" ");
+          return searchWords.every((w) => labels.some((l) => l.includes(w)));
+        })
+        .slice(0, 10),
+    [options, debouncedSearch],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

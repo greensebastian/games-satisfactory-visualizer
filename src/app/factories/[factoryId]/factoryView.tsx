@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "../../../components/ui/combobox";
 import { useStore } from "zustand";
 import { Input } from "@/components/ui/input";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -199,6 +199,11 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
   // Hack because of move on creation
   const visible = useDelay();
 
+  const recipeOptions = useMemo(
+    () => recipes.map((r) => ({ value: r.id, label: r.name })),
+    [recipes],
+  );
+
   return (
     <div
       style={{ opacity: visible ? (data.done ? 0.5 : 1) : 0 }}
@@ -230,7 +235,7 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
           }
         />
         <Combobox
-          options={recipes.map((r) => ({ value: r.id, label: r.name }))}
+          options={recipeOptions}
           selectedOption={data.recipe.id}
           setOption={(recipeId) => setRecipe(id, recipeId)}
         />
