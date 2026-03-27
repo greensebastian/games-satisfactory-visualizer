@@ -22,13 +22,14 @@ import {
   useReactFlow,
   OnConnectEnd,
   XYPosition,
+  OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "../../../components/ui/combobox";
 import { useStore } from "zustand";
 import { Input } from "@/components/ui/input";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Table,
@@ -46,6 +47,7 @@ import {
 import { useDelay } from "@/lib/useDelay";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useViewStateStore } from "../viewState";
 
 const nodeTypes = {
   buildingNode: BuildingNode,
@@ -53,6 +55,7 @@ const nodeTypes = {
 
 export function FactoryView() {
   const reactFlow = useReactFlow<Node<Building>>();
+
   const store = useFactoryStore();
   const factory = useStore(store);
 
@@ -102,6 +105,12 @@ export function FactoryView() {
           ? 1
           : a.itemDisplayName.localeCompare(b.itemDisplayName);
     });
+
+  const viewStateStore = useViewStateStore();
+  const viewState = useStore(viewStateStore);
+  const onSelectionChange = useCallback<OnSelectionChangeFunc>(({ nodes }) => {
+    viewState.set(() => ({ activeBuildingIds: nodes.map((n) => n.id) }));
+  }, []);
 
   return (
     <div className="p-4 pb-0 w-screen h-screen overflow-hidden flex flex-col">
@@ -163,6 +172,7 @@ export function FactoryView() {
             onConnect={factory.onConnect}
             onConnectEnd={onConnectEnd}
             fitView
+            onSelectionChange={onSelectionChange}
           />
         </div>
       </div>
@@ -171,9 +181,10 @@ export function FactoryView() {
 }
 
 function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
-  const store = useFactoryStore();
-  const setRecipe = useStore(store, (s) => s.setRecipe);
-  const setBuilding = useStore(store, (s) => s.setBuilding);
+  const reactFlow = useReactFlow();
+  const factoryStore = useFactoryStore();
+  const setRecipe = useStore(factoryStore, (s) => s.setRecipe);
+  const setBuilding = useStore(factoryStore, (s) => s.setBuilding);
   const setBuildingData = (
     change: (prevData: Building) => Partial<Building>,
   ) => {
@@ -185,7 +196,7 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
       },
     }));
   };
-  const factory = useStore(store);
+  const factory = useStore(factoryStore);
   const missingInputs = factory.connections.reduce(
     (unresolvedInputItems, connection) => {
       if (!connection.targetHandle) return unresolvedInputItems;
@@ -204,11 +215,57 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
     [recipes],
   );
 
+  const viewStateStore = useViewStateStore();
+  const viewState = useStore(viewStateStore);
+  const connections = reactFlow.getNodeConnections({ nodeId: id });
+  const sourceToActiveBuilding = connections.some((c) =>
+    viewState.activeBuildingIds.includes(c.target),
+  );
+  const targetToActiveBuilding = connections.some((c) =>
+    viewState.activeBuildingIds.includes(c.source),
+  );
+  const activeBuilding = viewState.activeBuildingIds.includes(id);
+  const hoveredBuilding = factory.buildings.find(
+    (b) => b.id === viewState.hoveredBuildingId,
+  );
+  const isHovered = hoveredBuilding?.id === id;
+  const sourceToHoveredBuilding =
+    hoveredBuilding &&
+    hoveredBuilding.data.recipe.requires.some((r) =>
+      data.recipe.produces.some((p) => r.item === p.item),
+    );
+  const targetToHoveredBuilding =
+    hoveredBuilding &&
+    hoveredBuilding.data.recipe.produces.some((p) =>
+      data.recipe.requires.some((r) => p.item === r.item),
+    );
+
+  const chainColors = ["bg-amber-200", "bg-sky-200", "bg-emerald-200"];
+  const chainBorderColor = [
+    "border-amber-800",
+    "border-sky-800",
+    "border-emerald-800",
+  ];
+
   return (
     <div
       style={{ opacity: visible ? (data.done ? 0.5 : 1) : 0 }}
       className={cn(
-        "bg-white text-gray-800 text-sm rounded shadow flex flex-col items-stretch",
+        "border-solid border-7 bg-white shadow text-gray-800 text-sm rounded flex flex-col items-stretch",
+        activeBuilding
+          ? chainColors[1]
+          : sourceToActiveBuilding
+            ? chainColors[0]
+            : targetToActiveBuilding
+              ? chainColors[2]
+              : "",
+        isHovered
+          ? chainBorderColor[1]
+          : sourceToHoveredBuilding
+            ? chainBorderColor[0]
+            : targetToHoveredBuilding
+              ? chainBorderColor[2]
+              : "",
       )}
       onWheelCapture={(e) => {
         if (
@@ -220,6 +277,14 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
             oldData.count + (e.deltaY < 0 ? 0.25 : e.deltaY > 0 ? -0.25 : 0),
         }));
         e.stopPropagation();
+      }}
+      onMouseEnter={() => {
+        if (viewState.hoveredBuildingId !== id)
+          viewState.set(() => ({ hoveredBuildingId: id }));
+      }}
+      onMouseLeave={() => {
+        if (viewState.hoveredBuildingId === id)
+          viewState.set(() => ({ hoveredBuildingId: undefined }));
       }}
     >
       <div className="flex justify-center items-center gap-2">
@@ -272,6 +337,11 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
                     position={Position.Left}
                     isConnectable={true}
                     id={handle}
+                    style={{
+                      height: "0.6rem",
+                      width: "0.6rem",
+                      translate: "-75%",
+                    }}
                   />
                   <div
                     className={`pl-2 pr-1 ${diffClass} border-3  ${missingRequirementClass}`}
@@ -300,6 +370,11 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
                 position={Position.Right}
                 isConnectable={true}
                 id={handleId(id, false, output.item)}
+                style={{
+                  height: "0.6rem",
+                  width: "0.6rem",
+                  translate: "75%",
+                }}
               />
               {displayAmount(output.item, data.count * output.rate)}{" "}
               {displayName(output.item)}
