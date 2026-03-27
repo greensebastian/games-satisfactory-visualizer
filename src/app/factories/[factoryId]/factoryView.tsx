@@ -244,7 +244,7 @@ function BuildingNode({ id, data }: NodeProps<Node<Building>>) {
   const chainBorderColor = [
     "border-amber-800",
     "border-sky-800",
-    "border-emerald-800",
+    "border-lime-600",
   ];
 
   return (
