@@ -169,7 +169,7 @@ export type ItemRate = {
 export type Item = {
   id: string;
   display: string;
-  form: "solid" | "liquid" | "invalid";
+  form: "solid" | "liquid" | "gas" | "invalid";
 };
 
 const itemRateRegex = /\([^()]+\)/g;
@@ -266,6 +266,8 @@ function getForm(item: { mForm: string }): Item["form"] {
       return "solid";
     case "RF_LIQUID":
       return "liquid";
+    case "RF_GAS":
+      return "gas";
     default:
       return "invalid";
   }
@@ -302,10 +304,14 @@ export const items: Item[] = [
 export const displayName = (itemId: string) =>
   items.find((i) => i.id === itemId)?.display ?? itemId;
 
-export const displayAmount = (itemId: string, amount: number) =>
-  items.find((i) => i.id === itemId)?.form === "liquid"
+export const displayAmount = (itemId: string, amount: number) => {
+  const form = items.find((i) => i.id === itemId)?.form;
+  return form === "liquid"
     ? amount / 1000 // Cubic meters
-    : amount;
+    : form === "gas"
+      ? amount / 1000 // Cubic meters
+      : amount;
+};
 
 export function handleId(buildingId: string, isInput: boolean, itemId: string) {
   return `${buildingId}||${isInput ? "target" : "source"}||${itemId}`;
